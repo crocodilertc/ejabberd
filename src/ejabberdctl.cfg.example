@@ -147,7 +147,7 @@ INET_DIST_INTERFACE={127,0,0,1}
 #
 # Default: don't write PID file
 #
-#EJABBERD_PID_PATH=/var/run/ejabberd/ejabberd.pid
+EJABBERD_PID_PATH=/var/run/ejabberd/ejabberd.pid
 
 #.
 #'
