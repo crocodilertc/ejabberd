@@ -70,11 +70,11 @@ check_password(User, Server, Password) ->
 	    Username = ejabberd_odbc:escape(LUser),
 	    LServer = jlib:nameprep(Server),
 	    try odbc_queries:get_password(LServer, Username) of
-		{selected, ["password"], [{Password}]} ->
+		{selected, ["password","ha1"], [{Password,_Ha1}]} ->
 		    Password /= ""; %% Password is correct, and not empty
-		{selected, ["password"], [{_Password2}]} ->
+		{selected, ["password","ha1"], [{_Password2,_Ha1}]} ->
 		    false; %% Password is not correct
-		{selected, ["password"], []} ->
+		{selected, ["password","ha1"], []} ->
 		    false; %% Account does not exist
 		{error, _Error} ->
 		    false %% Typical error is that table doesn't exist
@@ -94,7 +94,7 @@ check_password(User, Server, Password, Digest, DigestGen) ->
 	    LServer = jlib:nameprep(Server),
 	    try odbc_queries:get_password(LServer, Username) of
 		%% Account exists, check if password is valid
-		{selected, ["password"], [{Passwd}]} ->
+		{selected, ["password","ha1"], [{Passwd,_Ha1}]} ->
 		    DigRes = if
 				 Digest /= "" ->
 				     Digest == DigestGen(Passwd);
@@ -106,7 +106,7 @@ check_password(User, Server, Password, Digest, DigestGen) ->
 		       true ->
 			    (Passwd == Password) and (Password /= "")
 		    end;
-		{selected, ["password"], []} ->
+		{selected, ["password","ha1"], []} ->
 		    false; %% Account does not exist
 		{error, _Error} ->
 		    false %% Typical error is that table doesn't exist
@@ -200,11 +200,19 @@ get_password(User, Server) ->
 	LUser ->
 	    Username = ejabberd_odbc:escape(LUser),
 	    LServer = jlib:nameprep(Server),
-	    case catch odbc_queries:get_password(LServer, Username) of
-		{selected, ["password"], [{Password}]} ->
-		    Password;
+	    {P,H} = case catch odbc_queries:get_password(LServer, Username) of
+		{selected, ["password","ha1"], [{Password,Ha1}]} ->
+		    {Password,Ha1};
 		_ ->
-		    false
+		    {null,null}
+	    end,
+	    case {P,H} of
+		{null,null} ->
+			false;
+		{_,null} ->
+			P;
+		_ ->
+			{P,H}
 	    end
     end.
 
@@ -215,11 +223,19 @@ get_password_s(User, Server) ->
 	LUser ->
 	    Username = ejabberd_odbc:escape(LUser),
 	    LServer = jlib:nameprep(Server),
-	    case catch odbc_queries:get_password(LServer, Username) of
-		{selected, ["password"], [{Password}]} ->
-		    Password;
+	    {P,H} = case catch odbc_queries:get_password(LServer, Username) of
+		{selected, ["password", "ha1"], [{Password,Ha1}]} ->
+		    {Password,Ha1};
 		_ ->
-		    ""
+		    {null,null}
+	    end,
+	    case {P,H} of
+		{null,null} ->
+			"";
+		{_,null} ->
+			P;
+		_ ->
+			{P,H}
 	    end
     end.
 
@@ -232,9 +248,9 @@ is_user_exists(User, Server) ->
 	    Username = ejabberd_odbc:escape(LUser),
 	    LServer = jlib:nameprep(Server),
 	    try odbc_queries:get_password(LServer, Username) of
-		{selected, ["password"], [{_Password}]} ->
+		{selected, ["password","ha1"], [{_Password,_Ha1}]} ->
 		    true; %% Account exists
-		{selected, ["password"], []} ->
+		{selected, ["password","ha1"], []} ->
 		    false; %% Account does not exist
 		{error, Error} ->
 		    {error, Error} %% Typical error is that table doesn't exist

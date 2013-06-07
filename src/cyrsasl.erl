@@ -52,11 +52,49 @@ start() ->
     ets:new(sasl_mechanism, [named_table,
 			     public,
 			     {keypos, #sasl_mechanism.mechanism}]),
+    
+    Mechs = ejabberd_config:get_local_option(auth_mechanisms),
+    case Mechs of
+        undefined ->
+            start_all_mechs();
+        _ ->
+            case is_atom(Mechs) of
+                true ->
+                    start_all_mechs();
+                false ->
+                    case lists:flatlength(Mechs) of 
+                        0 ->
+                            start_all_mechs();
+                        _ ->
+                            start_mechs(Mechs)
+                    end
+            end
+    end,
+    ok.
+
+start_all_mechs() ->
     cyrsasl_plain:start([]),
     cyrsasl_digest:start([]),
     cyrsasl_scram:start([]),
-    cyrsasl_anonymous:start([]),
-    ok.
+    cyrsasl_anonymous:start([]).
+
+start_mechs([M | Mechs]) ->
+    ?DEBUG("Starting: ~p",[M]),
+    case M of
+        digest ->
+            cyrsasl_digest:start([]);
+        plain ->
+            cyrsasl_plain:start([]);
+        scram ->
+            cyrsasl_scram:start([]);
+        anon ->
+            cyrsasl_anonymous:start([])
+    end,
+    start_mechs(Mechs);
+
+start_mechs([]) ->
+	[].
+
 
 register_mechanism(Mechanism, Module, PasswordType) ->
     ets:insert(sasl_mechanism,

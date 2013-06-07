@@ -78,15 +78,37 @@ mech_step(#state{step = 3, nonce = Nonce} = State, ClientIn) ->
 		    case (State#state.get_password)(UserName) of
 			{false, _} ->
 			    {error, "not-authorized", UserName};
+			{{Passwd, Ha1}, AuthModule} ->
+			    ?DEBUG("Funney-Hash ~p, ~p, ~p",[UserName,Passwd,Ha1]),
+ 			   case (State#state.check_password)(UserName, "",
+					xml:get_attr_s("response", KeyVals),
+					fun(PW) -> response(KeyVals, UserName, PW, Nonce, AuthzId,
+						"AUTHENTICATE",Ha1) end) of
+			    {true, _} ->
+
+			    	RspAuth = response(KeyVals,
+					       UserName, Passwd,
+					       Nonce, AuthzId, "", Ha1),
+			    	{continue,
+			     		"rspauth=" ++ RspAuth,
+			     		State#state{step = 5,
+						 auth_module = AuthModule,
+						 username = UserName,
+						 authzid = AuthzId}};
+			     false ->
+				    {error, "not-authorized", UserName};
+			     {false, _} ->
+				    {error, "not-authorized", UserName}
+			    end;
 			{Passwd, AuthModule} ->
 				case (State#state.check_password)(UserName, "",
 					xml:get_attr_s("response", KeyVals),
 					fun(PW) -> response(KeyVals, UserName, PW, Nonce, AuthzId,
-						"AUTHENTICATE") end) of
+						"AUTHENTICATE","") end) of
 				{true, _} ->
 				    RspAuth = response(KeyVals,
 						       UserName, Passwd,
-						       Nonce, AuthzId, ""),
+						       Nonce, AuthzId, "", ""),
 				    {continue,
 				     "rspauth=" ++ RspAuth,
 				     State#state{step = 5,
@@ -214,7 +236,7 @@ hex([N | Ns], Res) ->
 	     digit_to_xchar(N div 16) | Res]).
 
 
-response(KeyVals, User, Passwd, Nonce, AuthzId, A2Prefix) ->
+response(KeyVals, User, Passwd, Nonce, AuthzId, A2Prefix, Ha1) ->
     Realm = xml:get_attr_s("realm", KeyVals),
     CNonce = xml:get_attr_s("cnonce", KeyVals),
     DigestURI = xml:get_attr_s("digest-uri", KeyVals),
@@ -222,13 +244,27 @@ response(KeyVals, User, Passwd, Nonce, AuthzId, A2Prefix) ->
     QOP = xml:get_attr_s("qop", KeyVals),
     A1 = case AuthzId of
 	     "" ->
-		 binary_to_list(
-		   crypto:md5(User ++ ":" ++ Realm ++ ":" ++ Passwd)) ++
-		     ":" ++ Nonce ++ ":" ++ CNonce;
+		case Ha1 of
+			"" ->
+			 binary_to_list(
+			   	crypto:md5(User ++ ":" ++ Realm ++ ":" ++ Passwd)) ++
+			     	":" ++ Nonce ++ ":" ++ CNonce;
+			_ ->
+			 binary_to_list(
+			   	hex:hexstr_to_bin(Ha1)) ++
+			     	":" ++ Nonce ++ ":" ++ CNonce
+		end;
 	     _ ->
-		 binary_to_list(
-		   crypto:md5(User ++ ":" ++ Realm ++ ":" ++ Passwd)) ++
-		     ":" ++ Nonce ++ ":" ++ CNonce ++ ":" ++ AuthzId
+		case Ha1 of
+			"" ->
+		 		binary_to_list(
+				   crypto:md5(User ++ ":" ++ Realm ++ ":" ++ Passwd)) ++
+				     ":" ++ Nonce ++ ":" ++ CNonce ++ ":" ++ AuthzId;
+			_ ->
+		 		binary_to_list(
+			   		hex:hexstr_to_bin(Ha1)) ++
+				     ":" ++ Nonce ++ ":" ++ CNonce ++ ":" ++ AuthzId
+		end
 	 end,
     A2 = case QOP of
 	     "auth" ->

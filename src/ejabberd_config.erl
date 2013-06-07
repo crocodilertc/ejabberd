@@ -443,6 +443,10 @@ process_term(Term, State) ->
 	    State;
 	{max_fsm_queue, N} ->
 	    add_option(max_fsm_queue, N, State);
+	{password_type, PasswordType} ->
+	    add_option(password_type, PasswordType, State);
+	{auth_mechanisms, AuthMechs} ->
+	    add_option(auth_mechanisms, AuthMechs, State);
 	{_Opt, _Val} ->
 	    lists:foldl(fun(Host, S) -> process_host_term(Term, Host, S) end,
 			State, State#state.hosts)

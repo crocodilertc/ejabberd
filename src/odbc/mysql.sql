@@ -23,6 +23,7 @@ SET table_type=InnoDB;
 CREATE TABLE users (
     username varchar(250) PRIMARY KEY,
     password text NOT NULL,
+    ha1 text,
     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) CHARACTER SET utf8;
 

@@ -90,6 +90,9 @@
 %%
 {hosts, ["localhost"]}.
 
+%%{auth_mechanisms,[digest,plain]}.
+%%{password_type,hashed}.
+
 %%
 %% route_subdomains: Delegate subdomains to other XMPP servers.
 %% For example, if this ejabberd serves example.org and you want

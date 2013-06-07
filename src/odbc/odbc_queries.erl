@@ -167,23 +167,46 @@ del_last(LServer, Username) ->
 get_password(LServer, Username) ->
     ejabberd_odbc:sql_query(
       LServer,
-      ["select password from users "
+      ["select password, ha1 from users "
        "where username='", Username, "';"]).
 
 set_password_t(LServer, Username, Pass) ->
-    ejabberd_odbc:sql_transaction(
-      LServer,
-      fun() ->
-	      update_t("users", ["username", "password"],
-		       [Username, Pass],
-		       ["username='", Username ,"'"])
-      end).
+    PS = ejabberd_config:get_local_option(password_type),
+    case PS of
+        hashed ->
+	        Ha1 = hex:bin_to_hexstr(crypto:md5(Username ++ ":" ++ LServer ++ ":" ++ Pass)),
+	        ejabberd_odbc:sql_transaction(
+	        LServer,
+	        fun() ->
+		        update_t("users", ["username", "ha1"],
+			       [Username, Ha1],
+			       ["username='", Username ,"'"])
+	        end);
+        _ ->
+	    ejabberd_odbc:sql_transaction(
+	        LServer,
+	        fun() ->
+		        update_t("users", ["username", "password"],
+			       [Username, Pass],
+			       ["username='", Username ,"'"])
+	        end)
+    end.
 
 add_user(LServer, Username, Pass) ->
-    ejabberd_odbc:sql_query(
-      LServer,
-      ["insert into users(username, password) "
-       "values ('", Username, "', '", Pass, "');"]).
+    PS = ejabberd_config:get_local_option(password_type),
+    case PS of
+        hashed ->
+            Ha1 = hex:bin_to_hexstr(crypto:md5(Username ++ ":" ++ LServer ++ ":" ++ Pass)),
+                ejabberd_odbc:sql_query(
+    	            LServer,
+	                ["insert into users(username, ha1) "
+	                "values ('", Username, "', '", Ha1, "');"]);
+        _ ->
+            ejabberd_odbc:sql_query(
+    	        LServer,
+	            ["insert into users(username, password) "
+	            "values ('", Username, "', '", Pass, "');"])
+    end.
 
 del_user(LServer, Username) ->
     ejabberd_odbc:sql_query(
@@ -191,12 +214,24 @@ del_user(LServer, Username) ->
       ["delete from users where username='", Username ,"';"]).
 
 del_user_return_password(_LServer, Username, Pass) ->
-    P = ejabberd_odbc:sql_query_t(
-	  ["select password from users where username='",
-	   Username, "';"]),
-    ejabberd_odbc:sql_query_t(["delete from users "
-			       "where username='", Username,
-			       "' and password='", Pass, "';"]),
+    PS = ejabberd_config:get_local_option(password_type),
+    P = case PS of
+        hashed ->
+            Ha1 = hex:bin_to_hexstr(crypto:md5(Username ++ ":" ++ _LServer ++ ":" ++ Pass)),
+            ejabberd_odbc:sql_query_t(
+	            ["select ha1 from users where username='",
+	            Username, "';"]),
+            ejabberd_odbc:sql_query_t(["delete from users "
+		        "where username='", Username,
+			    "' and ha1='", Ha1, "';"]);
+        _ ->
+            ejabberd_odbc:sql_query_t(
+	            ["select password from users where username='",
+	            Username, "';"]),
+            ejabberd_odbc:sql_query_t(["delete from users "
+		        "where username='", Username,
+			    "' and password='", Pass, "';"])
+        end,
     P.
 
 list_users(LServer) ->
