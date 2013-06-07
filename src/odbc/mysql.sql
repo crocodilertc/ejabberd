@@ -21,15 +21,18 @@
 SET table_type=InnoDB;
 
 CREATE TABLE users (
-    username varchar(250) PRIMARY KEY,
+    username varchar(250),
     password text NOT NULL,
     ha1 text,
-    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+    domain varchar(128) NOT NULL,
+    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (username, domain)
 ) CHARACTER SET utf8;
 
 
 CREATE TABLE last (
     username varchar(250) PRIMARY KEY,
+    domain varchar(128) NOT NULL,
     seconds text NOT NULL,
     state text NOT NULl
 ) CHARACTER SET utf8;
@@ -37,6 +40,7 @@ CREATE TABLE last (
 
 CREATE TABLE rosterusers (
     username varchar(250) NOT NULL,
+    domain varchar(128) NOT NULL,
     jid varchar(250) NOT NULL,
     nick text NOT NULL,
     subscription character(1) NOT NULL,
@@ -48,17 +52,18 @@ CREATE TABLE rosterusers (
     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) CHARACTER SET utf8;
 
-CREATE UNIQUE INDEX i_rosteru_user_jid ON rosterusers(username(75), jid(75));
-CREATE INDEX i_rosteru_username ON rosterusers(username);
+CREATE UNIQUE INDEX i_rosteru_user_jid ON rosterusers(username(75), domain(64), jid(75));
+CREATE INDEX i_rosteru_username ON rosterusers(username,domain);
 CREATE INDEX i_rosteru_jid ON rosterusers(jid);
 
 CREATE TABLE rostergroups (
     username varchar(250) NOT NULL,
+    domain varchar(128) NOT NULL,
     jid varchar(250) NOT NULL,
     grp text NOT NULL
 ) CHARACTER SET utf8;
 
-CREATE INDEX pk_rosterg_user_jid ON rostergroups(username(75), jid(75));
+CREATE INDEX pk_rosterg_user_jid ON rostergroups(username(75), domain(64), jid(75));
 
 CREATE TABLE sr_group (
     name varchar(250) NOT NULL,
@@ -78,28 +83,32 @@ CREATE INDEX i_sr_user_grp ON sr_user(grp);
 
 CREATE TABLE spool (
     username varchar(250) NOT NULL,
+    domain varchar(128) NOT NULL,
     xml text NOT NULL,
     seq BIGINT UNSIGNED NOT NULL AUTO_INCREMENT UNIQUE,
     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) CHARACTER SET utf8;
 
-CREATE INDEX i_despool USING BTREE ON spool(username);
+CREATE INDEX i_despool USING BTREE ON spool(username,domain);
 
 
 CREATE TABLE vcard (
     username varchar(250) PRIMARY KEY,
+    domain varchar(128) NOT NULL,
     vcard mediumtext NOT NULL,
     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) CHARACTER SET utf8;
 
 CREATE TABLE vcard_xupdate (
     username varchar(250) PRIMARY KEY,
+    domain varchar(128) NOT NULL,
     hash text NOT NULL,
     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) CHARACTER SET utf8;
 
 CREATE TABLE vcard_search (
     username varchar(250) NOT NULL,
+    domain varchar(128) NOT NULL,
     lusername varchar(250) PRIMARY KEY,
     fn text NOT NULL,
     lfn varchar(250) NOT NULL,
@@ -139,22 +148,25 @@ CREATE INDEX i_vcard_search_lorgunit  ON vcard_search(lorgunit);
 
 CREATE TABLE privacy_default_list (
     username varchar(250) PRIMARY KEY,
+    domain varchar(128) NOT NULL,
     name varchar(250) NOT NULL
 ) CHARACTER SET utf8;
 
 CREATE TABLE privacy_list (
     username varchar(250) NOT NULL,
+    domain varchar(128) NOT NULL,
     name varchar(250) NOT NULL,
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT UNIQUE,
     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) CHARACTER SET utf8;
 
-CREATE INDEX i_privacy_list_username  USING BTREE ON privacy_list(username);
-CREATE UNIQUE INDEX i_privacy_list_username_name USING BTREE ON privacy_list (username(75), name(75));
+CREATE INDEX i_privacy_list_username  USING BTREE ON privacy_list(username,domain);
+CREATE UNIQUE INDEX i_privacy_list_username_name USING BTREE ON privacy_list (username(75), domain(64), name(75));
 
 CREATE TABLE privacy_list_data (
     id bigint,
     t character(1) NOT NULL,
+    domain varchar(128) NOT NULL,
     value text NOT NULL,
     action character(1) NOT NULL,
     ord NUMERIC NOT NULL,
@@ -167,17 +179,19 @@ CREATE TABLE privacy_list_data (
 
 CREATE TABLE private_storage (
     username varchar(250) NOT NULL,
+    domain varchar(128) NOT NULL,
     namespace varchar(250) NOT NULL,
     data text NOT NULL,
     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) CHARACTER SET utf8;
 
-CREATE INDEX i_private_storage_username USING BTREE ON private_storage(username);
-CREATE UNIQUE INDEX i_private_storage_username_namespace USING BTREE ON private_storage(username(75), namespace(75));
+CREATE INDEX i_private_storage_username USING BTREE ON private_storage(username,domain);
+CREATE UNIQUE INDEX i_private_storage_username_namespace USING BTREE ON private_storage(username(75), domain(64), namespace(75));
 
 -- Not tested in mysql
 CREATE TABLE roster_version (
     username varchar(250) PRIMARY KEY,
+    domain varchar(128) NOT NULL,
     version text NOT NULL
 ) CHARACTER SET utf8;
 
